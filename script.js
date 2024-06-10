@@ -1,122 +1,98 @@
-document.addEventListener("DOMContentLoaded", function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const cnpj = urlParams.get('cnpj');
-    
-    if (cnpj) {
-        mostrarLoading();
-        document.getElementById('cnpj-input').value = cnpj;
-        buscarCNPJ();
+let max_particles = 1000;
+let hero = 0;
+var tela = document.createElement('canvas');
+tela.width = $(window).width();
+tela.height = $(window).height();
+$("body").append(tela);
+
+var canvas = tela.getContext('2d');
+
+class Particle {
+  constructor(canvas, progress) {
+    let random = Math.random();
+    this.progress = 0;
+    this.canvas = canvas;
+
+
+    this.x = $(window).width() / 2 + (Math.random() * 200 - Math.random() * 200);
+    this.y = $(window).height() / 2 + (Math.random() * 200 - Math.random() * 200);
+    this.s = Math.random() * 1;
+    this.a = 0;
+    this.w = $(window).width();
+    this.h = $(window).height();
+    this.radius = random > .2 ? Math.random() * 1 : Math.random() * .5;
+    this.color = random > .2 ? "#EEEEEE" : "#FFFFFF";
+    this.color = random > .8 ? "#EEEEEE" : this.color;
+    this.radius = this.color == "#FFFFFF" ? 2 + Math.random() * 2 : this.radius;
+
+    if (hero < 5) {
+      this.color = "#005eff";
+      this.radius = 2;
+      hero++;
     }
 
-    if (window.self !== window.top) {
-        ajustarParaIframe();
-    }
-});
+    // this.color  = random > .1 ? "#ffae00" : "#f0ff00" // Alien
+    this.variantx1 = Math.random() * 300;
+    this.variantx2 = Math.random() * 400;
+    this.varianty1 = Math.random() * 100;
+    this.varianty2 = Math.random() * 120;
+  }
 
-function ajustarParaIframe() {
-    document.body.style.fontSize = '12px';
-    const container = document.querySelector('.container');
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.padding = '10px';
-    container.style.boxShadow = 'none';
-    container.style.borderRadius = '0';
-}
+  render() {
+    this.canvas.beginPath();
+    this.canvas.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+    this.canvas.lineWidth = 2;
+    this.canvas.fillStyle = this.color;
+    this.canvas.fill();
+    this.canvas.closePath();
+  }
 
-function mostrarLoading() {
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('input-container').style.display = 'none';
-    document.getElementById('result').style.display = 'none';
-}
+  move() {
+    this.x += Math.cos(this.a) * this.s;
+    this.y += Math.sin(this.a) * this.s;
+    this.a += Math.random() * 0.7 - 0.35;
 
-function esconderLoading() {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('result').style.display = 'block';
-}
-
-async function buscarCNPJ() {
-    const cnpj = document.getElementById('cnpj-input').value;
-    if (!cnpj) {
-        alert('Por favor, insira um CNPJ válido.');
-        esconderLoading();
-        return;
+    if (this.x < 0 || this.x > this.w - this.radius) {
+      return false;
     }
 
-    try {
-        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-        if (!response.ok) {
-            throw new Error('Erro ao buscar os dados.');
-        }
-
-        const data = await response.json();
-        displayResult(data);
-    } catch (error) {
-        document.getElementById('result').innerText = 'Erro ao buscar os dados. Verifique o CNPJ e tente novamente.';
-        esconderLoading();
+    if (this.y < 0 || this.y > this.h - this.radius) {
+      return false;
     }
+    this.render();
+    this.progress++;
+    return true;
+  }}
+
+
+let particles = [];
+let init_num = popolate(max_particles);
+function popolate(num) {
+  for (var i = 0; i < num; i++) {
+    setTimeout(
+    function () {
+      particles.push(new Particle(canvas, i));
+    }.bind(this),
+    i * 2);
+  }
+  return particles.length;
 }
 
-function displayResult(data) {
-    const resultDiv = document.getElementById('result');
-    resultDiv.innerHTML = `
-        <table>
-            <tr><td>Razão Social</td><td>${data.razao_social ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Nome Fantasia</td><td>${data.nome_fantasia ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Idade da Empresa</td><td>${calcularIdadeEmpresa(data.data_inicio_atividade) ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Descrição da Situação Cadastral</td><td>${data.descricao_situacao_cadastral ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Descrição do CNAE Fiscal</td><td>${data.cnae_fiscal_descricao ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Telefone 1</td><td>${formatPhoneNumber(data.ddd_telefone_1) ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Telefone 2</td><td>${formatPhoneNumber(data.ddd_telefone_2) ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Email</td><td>${data.email ?? 'Não cadastrado'}</td></tr>
-            <tr><td>Capital Social</td><td>${formatCurrency(data.capital_social)}</td></tr>
-        </table>
-    `;
-
-    esconderLoading();
+function clear() {
+  canvas.globalAlpha = 0.03;
+  canvas.fillStyle = '#FFFFFF';
+  canvas.fillRect(0, 0, tela.width, tela.height);
+  canvas.globalAlpha = 1;
 }
 
-function calcularIdadeEmpresa(dataInicio) {
-    if (!dataInicio) return 'Não cadastrado';
-
-    const dataAtual = new Date();
-    const dataInicioAtividade = new Date(dataInicio);
-    const diferencaAnos = dataAtual.getFullYear() - dataInicioAtividade.getFullYear();
-    const diferencaMeses = dataAtual.getMonth() - dataInicioAtividade.getMonth();
-    const diferencaDias = dataAtual.getDate() - dataInicioAtividade.getDate();
-
-    let anos = diferencaAnos;
-    let meses = diferencaMeses;
-
-    if (diferencaMeses < 0 || (diferencaMeses === 0 && diferencaDias < 0)) {
-        anos--;
-        meses += 12;
-    }
-
-    if (diferencaDias < 0) {
-        meses--;
-        if (meses < 0) {
-            anos--;
-            meses += 12;
-        }
-    }
-
-    return `${anos} anos e ${meses} meses`;
+function update() {
+  particles = particles.filter(function (p) {
+    return p.move();
+  });
+  if (particles.length < init_num) {
+    popolate(1);
+  }
+  clear();
+  requestAnimationFrame(update.bind(this));
 }
-
-function formatPhoneNumber(number) {
-    if (!number) return null;
-
-    const cleaned = number.replace(/\D/g, '');
-    const match = cleaned.match(/^(\d{2})(\d{4,5})(\d{4})$/);
-
-    if (match) {
-        return ['(', match[1], ') ', match[2], '-', match[3]].join('');
-    }
-
-    return number;
-}
-
-function formatCurrency(value) {
-    if (!value) return 'Não cadastrado';
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}
+update();
